@@ -28,7 +28,9 @@ typedef struct ch_cursor ch_cursor;
 typedef struct ch_cursor
 {
 	MemoryContext	memcxt;	/* used for cleanup */
+#if PG_VERSION_NUM >= 90500
 	MemoryContextCallback callback;
+#endif
 
 	void	*query_response;
 	void	*read_state;

@@ -197,9 +197,11 @@ again:
 	ch_http_read_state_init(cursor->read_state, resp->data, resp->datasize);
 
 	cursor->memcxt = tempcxt;
+#if PG_VERSION_NUM >= 90500
 	cursor->callback.func = http_cursor_free;
 	cursor->callback.arg = cursor;
 	MemoryContextRegisterResetCallback(tempcxt, &cursor->callback);
+#endif
 	MemoryContextSwitchTo(oldcxt);
 
 	return cursor;
@@ -363,9 +365,11 @@ binary_simple_query(void *conn, const char *query)
 	ch_binary_read_state_init(cursor->read_state, resp);
 
 	cursor->memcxt = tempcxt;
+#if PG_VERSION_NUM >= 90500
 	cursor->callback.func = binary_cursor_free;
 	cursor->callback.arg = cursor;
 	MemoryContextRegisterResetCallback(tempcxt, &cursor->callback);
+#endif
 	MemoryContextSwitchTo(oldcxt);
 
 	if (state->error)
