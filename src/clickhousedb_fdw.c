@@ -2651,6 +2651,7 @@ chfdw_find_em_expr(EquivalenceClass *ec, RelOptInfo *rel)
 	return NULL;
 }
 
+#if PG_VERSION_NUM >= 90500
 static List *
 clickhouseImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 {
@@ -2659,6 +2660,7 @@ clickhouseImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	server = GetForeignServer(serverOid);
 	return chfdw_construct_create_tables(stmt, server);
 }
+#endif
 
 
 /*
@@ -2703,8 +2705,10 @@ clickhousedb_fdw_handler(PG_FUNCTION_ARGS)
 	/* Support functions for upper relation push-down */
 	routine->GetForeignUpperPaths = clickhouseGetForeignUpperPaths;
 
+#if PG_VERSION_NUM >= 90500
 	/* IMPORT FOREIGN SCHEMA */
 	routine->ImportForeignSchema = clickhouseImportForeignSchema;
+#endif
 
 	PG_RETURN_POINTER(routine);
 }

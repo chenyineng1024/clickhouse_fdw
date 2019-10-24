@@ -73,7 +73,9 @@ typedef struct {
 ch_connection chfdw_http_connect(char *connstring);
 ch_connection chfdw_binary_connect(ch_connection_details *details);
 text *chfdw_http_fetch_raw_data(ch_cursor *cursor);
+#if PG_VERSION_NUM >= 90500
 List *chfdw_construct_create_tables(ImportForeignSchemaStmt *stmt, ForeignServer *server);
+#endif
 
 typedef enum {
 	CH_DEFAULT,
