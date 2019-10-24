@@ -132,7 +132,7 @@ chfdw_get_connection(UserMapping *user)
 			ereport(ERROR,
 					(errcode(ERRCODE_UNDEFINED_OBJECT),
 					 errmsg("user mapping not found for \"%s\"",
-							MappingUserName(userid))));
+							MappingUserName(user->userid))));
 
 		key.userid = HeapTupleGetOid(tp);
 
