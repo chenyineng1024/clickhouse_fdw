@@ -85,6 +85,7 @@ chfdw_get_connection(UserMapping *user)
 	bool		found;
 	ConnCacheEntry *entry;
 	ConnCacheKey key;
+	Oid umid;
 
 	/* First time through, initialize connection cache hashtable */
 	if (ConnectionHash == NULL)
@@ -111,7 +112,35 @@ chfdw_get_connection(UserMapping *user)
 	}
 
 	/* Create hash key for the entry.  Assume no pad bytes in key struct */
+#if PG_VERSION_NUM >= 90600
 	key.userid = user->umid;
+#else
+	{
+		HeapTuple tp = SearchSysCache2(USERMAPPINGUSERSERVER,
+									   ObjectIdGetDatum(user->userid),
+									   ObjectIdGetDatum(user->serverid));
+
+		if (!HeapTupleIsValid(tp))
+		{
+			/* Not found for the specific user -- try PUBLIC */
+			tp = SearchSysCache2(USERMAPPINGUSERSERVER,
+								 ObjectIdGetDatum(InvalidOid),
+								 ObjectIdGetDatum(user->serverid));
+		}
+
+		if (!HeapTupleIsValid(tp))
+			ereport(ERROR,
+					(errcode(ERRCODE_UNDEFINED_OBJECT),
+					 errmsg("user mapping not found for \"%s\"",
+							MappingUserName(userid))));
+
+		key.userid = HeapTupleGetOid(tp);
+
+		ReleaseSysCache(tp);
+	}
+#endif
+
+	umid = key.userid;
 
 	/*
 	 * Find or create cached entry for requested connection.
@@ -159,14 +188,14 @@ chfdw_get_connection(UserMapping *user)
 		                          ObjectIdGetDatum(server->serverid));
 		entry->mapping_hashvalue =
 		    GetSysCacheHashValue1(USERMAPPINGOID,
-		                          ObjectIdGetDatum(user->umid));
+		                          ObjectIdGetDatum(umid));
 
 		/* Now try to make the connection */
 		entry->gate = clickhouse_connect(server, user);
 
 		elog(DEBUG3,
 		     "new clickhousedb_fdw connection %p for server \"%s\" (user mapping oid %u, userid %u)",
-		     entry->gate.conn, server->servername, user->umid, user->userid);
+		     entry->gate.conn, server->servername, umid, user->userid);
 	}
 
 	return entry->gate;
