@@ -491,6 +491,7 @@ foreign_expr_walker(Node *node,
 		check_type = false;
 	}
 	break;
+#if PG_VERSION_NUM >= 90600
 	case T_Aggref:
 	{
 		Aggref	   *agg = (Aggref *) node;
@@ -549,6 +550,7 @@ foreign_expr_walker(Node *node,
 		}
 	}
 	break;
+#endif
 	case T_CaseExpr:
 	{
 		CaseExpr   *caseexpr = (CaseExpr *) node;
@@ -844,16 +846,30 @@ chfdw_build_tlist_to_deparse(RelOptInfo *foreignrel)
 	 * We require columns specified in foreignrel->reltarget->exprs and those
 	 * required for evaluating the local conditions.
 	 */
+#if PG_VERSION_NUM >= 90600
 	tlist = add_to_flat_tlist(tlist,
 							  pull_var_clause((Node *) foreignrel->reltarget->exprs,
 											  PVC_RECURSE_PLACEHOLDERS));
+#else
+tlist = add_to_flat_tlist(tlist,
+						  pull_var_clause((Node *) foreignrel->reltargetlist,
+										  PVC_RECURSE_AGGREGATES,
+										  PVC_RECURSE_PLACEHOLDERS));
+#endif
 	foreach(lc, fpinfo->local_conds)
 	{
 		RestrictInfo *rinfo = lfirst_node(RestrictInfo, lc);
-
+#if PG_VERSION_NUM >= 90600
 		tlist = add_to_flat_tlist(tlist,
 								  pull_var_clause((Node *) rinfo->clause,
 												  PVC_RECURSE_PLACEHOLDERS));
+#else
+tlist = add_to_flat_tlist(tlist,
+						  pull_var_clause((Node *) rinfo->clause,
+										  PVC_RECURSE_AGGREGATES,
+										  PVC_RECURSE_PLACEHOLDERS));
+
+#endif
 	}
 
 	return tlist;
@@ -1237,7 +1253,11 @@ deparseSubqueryTargetList(deparse_expr_cxt *context)
 	Assert(IS_SIMPLE_REL(foreignrel) || IS_JOIN_REL(foreignrel));
 
 	first = true;
+#if PG_VERSION_NUM >= 90600
 	foreach(lc, foreignrel->reltarget->exprs)
+#else
+	foreach(lc, foreignrel->reltargetlist)
+#endif
 	{
 		Node	   *node = (Node *) lfirst(lc);
 
@@ -1467,7 +1487,11 @@ deparseRangeTblRef(StringInfo buf, PlannerInfo *root, RelOptInfo *foreignrel,
 		 * expressions specified in the relation's reltarget (see
 		 * deparseSubqueryTargetList).
 		 */
+#if PG_VERSION_NUM >= 90600
 		ncols = list_length(foreignrel->reltarget->exprs);
+#else
+		ncols = list_length(foreignrel->reltargetlist);
+#endif
 		if (ncols > 0)
 		{
 			int			i;
@@ -3569,7 +3593,11 @@ get_relation_column_alias_ids(Var *node, RelOptInfo *foreignrel,
 
 	/* Get the column alias ID */
 	i = 1;
+#if PG_VERSION_NUM >= 90600
 	foreach (lc, foreignrel->reltarget->exprs)
+#else
+	foreach (lc, foreignrel->reltargetlist)
+#endif
 	{
 		if (equal(lfirst(lc), (Node *) node))
 		{

@@ -99,7 +99,7 @@ chfdw_get_connection(UserMapping *user)
 		ctl.hcxt = CacheMemoryContext;
 		ConnectionHash = hash_create("clickhousedb_fdw connections", 8,
 		                             &ctl,
-		                             HASH_ELEM | HASH_BLOBS | HASH_CONTEXT);
+		                             HASH_ELEM | HASH_CONTEXT);
 
 		/*
 		 * Register some callback functions that manage connection cleanup.
