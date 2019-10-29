@@ -849,12 +849,14 @@ chfdw_build_tlist_to_deparse(RelOptInfo *foreignrel)
 	CHFdwRelationInfo *fpinfo = (CHFdwRelationInfo *) foreignrel->fdw_private;
 	ListCell   *lc;
 
+#if PG_VERSION_NUM >= 100000
 	/*
 	 * For an upper relation, we have already built the target list while
 	 * checking shippability, so just return that.
 	 */
 	if (IS_UPPER_REL(foreignrel))
 		return fpinfo->grouped_tlist;
+#endif
 
 	/*
 	 * We require columns specified in foreignrel->reltarget->exprs and those
@@ -1310,6 +1312,7 @@ deparseFromExprForRel(StringInfo buf, PlannerInfo *root, RelOptInfo *foreignrel,
 {
 	CHFdwRelationInfo *fpinfo = (CHFdwRelationInfo *) foreignrel->fdw_private;
 
+#if PG_VERSION_NUM >= 100000
 	if (IS_JOIN_REL(foreignrel))
 	{
 		StringInfoData join_sql_o;
@@ -1433,6 +1436,7 @@ deparseFromExprForRel(StringInfo buf, PlannerInfo *root, RelOptInfo *foreignrel,
 		}
 	}
 	else
+#endif
 	{
 		RangeTblEntry *rte = planner_rt_fetch(foreignrel->relid, root);
 
