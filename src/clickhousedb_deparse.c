@@ -217,6 +217,7 @@ chfdw_is_foreign_expr(PlannerInfo *root,
 	glob_cxt.root = root;
 	glob_cxt.foreignrel = baserel;
 
+#if PG_VERSION_NUM >= 100000
 	/*
 	 * For an upper relation, use relids from its underneath scan relation,
 	 * because the upperrel's own relids currently aren't set to anything
@@ -226,6 +227,9 @@ chfdw_is_foreign_expr(PlannerInfo *root,
 		glob_cxt.relids = fpinfo->outerrel->relids;
 	else
 		glob_cxt.relids = baserel->relids;
+#else
+	glob_cxt.relids = baserel->relids;
+#endif
 
 	if (!foreign_expr_walker((Node *) expr, &glob_cxt, &loc_cxt))
 		return false;
@@ -1011,6 +1015,7 @@ deparseSelectSql(List *tlist, bool is_subquery, List **retrieved_attrs,
 		 */
 		deparseSubqueryTargetList(context);
 	}
+#if PG_VERSION_NUM >= 100000
 	else if (IS_JOIN_REL(foreignrel) || IS_UPPER_REL(foreignrel))
 	{
 		/*
@@ -1019,6 +1024,7 @@ deparseSelectSql(List *tlist, bool is_subquery, List **retrieved_attrs,
 		 */
 		deparseExplicitTargetList(tlist, retrieved_attrs, context);
 	}
+#endif
 	else
 	{
 		/*
