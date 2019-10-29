@@ -502,7 +502,11 @@ foreign_expr_walker(Node *node,
 		ListCell   *lc;
 
 		/* Not safe to pushdown when not in grouping context */
+#if PG_VERSION_NUM >= 100000
 		if (!IS_UPPER_REL(glob_cxt->foreignrel))
+#else
+		if (glob_cxt->foreignrel->reloptkind != RELOPT_UPPER_REL)
+#endif
 			return false;
 
 		/* Only non-split aggregates are pushable. */
@@ -926,17 +930,24 @@ chfdw_deparse_select_stmt_for_rel(StringInfo buf, PlannerInfo *root, RelOptInfo 
 	List	   *quals;
 
 	elog(DEBUG2, "> %s:%d", __FUNCTION__, __LINE__);
+
+#if PG_VERSION_NUM >= 100000
 	/*
 	 * We handle relations for foreign tables, joins between those and upper
 	 * relations.
 	 */
 	Assert(IS_JOIN_REL(rel) || IS_SIMPLE_REL(rel) || IS_UPPER_REL(rel));
+#endif
 
 	/* Fill portions of context common to upper, join and base relation */
 	context.buf = buf;
 	context.root = root;
 	context.foreignrel = rel;
+#if PG_VERSION_NUM >= 100000
 	context.scanrel = IS_UPPER_REL(rel) ? fpinfo->outerrel : rel;
+#else
+	context.scanrel = rel;
+#endif
 	context.params_list = params_list;
 	context.func = NULL;
 	context.interval_op = NULL;
@@ -944,6 +955,7 @@ chfdw_deparse_select_stmt_for_rel(StringInfo buf, PlannerInfo *root, RelOptInfo 
 	/* Construct SELECT clause */
 	deparseSelectSql(tlist, is_subquery, retrieved_attrs, &context);
 
+#if PG_VERSION_NUM >= 100000
 	/*
 	 * For upper relations, the WHERE clause is built from the remote
 	 * conditions of the underlying scan relation; otherwise, we can use the
@@ -958,10 +970,14 @@ chfdw_deparse_select_stmt_for_rel(StringInfo buf, PlannerInfo *root, RelOptInfo 
 	}
 	else
 		quals = remote_conds;
+#else
+	quals = remote_conds;
+#endif
 
 	/* Construct FROM and WHERE clauses */
 	deparseFromExpr(quals, &context);
 
+#if PG_VERSION_NUM >= 100000
 	if (IS_UPPER_REL(rel))
 	{
 		/* Append GROUP BY clause */
@@ -974,6 +990,7 @@ chfdw_deparse_select_stmt_for_rel(StringInfo buf, PlannerInfo *root, RelOptInfo 
 			appendConditions(remote_conds, &context);
 		}
 	}
+#endif
 
 	/* Add ORDER BY clause if we found any useful pathkeys */
 	if (pathkeys)
@@ -1061,9 +1078,11 @@ deparseFromExpr(List *quals, deparse_expr_cxt *context)
 	StringInfo	buf = context->buf;
 	RelOptInfo *scanrel = context->scanrel;
 
+#if PG_VERSION_NUM >= 100000
 	/* For upper relations, scanrel must be either a joinrel or a baserel */
 	Assert(!IS_UPPER_REL(context->foreignrel) ||
 		   IS_JOIN_REL(scanrel) || IS_SIMPLE_REL(scanrel));
+#endif
 
 	/* Construct FROM clause */
 	appendStringInfoString(buf, " FROM ");
@@ -1267,8 +1286,10 @@ deparseSubqueryTargetList(deparse_expr_cxt *context)
 	bool		first;
 	ListCell   *lc;
 
+#if PG_VERSION_NUM >= 100000
 	/* Should only be called in these cases. */
 	Assert(IS_SIMPLE_REL(foreignrel) || IS_JOIN_REL(foreignrel));
+#endif
 
 	first = true;
 #if PG_VERSION_NUM >= 90600
@@ -1472,8 +1493,10 @@ deparseRangeTblRef(StringInfo buf, PlannerInfo *root, RelOptInfo *foreignrel,
 {
 	CHFdwRelationInfo *fpinfo = (CHFdwRelationInfo *) foreignrel->fdw_private;
 
+#if PG_VERSION_NUM >= 100000
 	/* Should only be called in these cases. */
 	Assert(IS_SIMPLE_REL(foreignrel) || IS_JOIN_REL(foreignrel));
+#endif
 
 	Assert(fpinfo->local_conds == NIL);
 
@@ -3545,9 +3568,12 @@ is_subquery_var(Var *node, RelOptInfo *foreignrel, int *relno, int *colno)
 	RelOptInfo *outerrel = fpinfo->outerrel;
 	RelOptInfo *innerrel = fpinfo->innerrel;
 
+#if PG_VERSION_NUM >= 100000
 	/* Should only be called in these cases. */
 	Assert(IS_SIMPLE_REL(foreignrel) || IS_JOIN_REL(foreignrel));
+#endif
 
+#if PG_VERSION_NUM >= 100000
 	/*
 	 * If the given relation isn't a join relation, it doesn't have any lower
 	 * subqueries, so the Var isn't a subquery output column.
@@ -3556,6 +3582,10 @@ is_subquery_var(Var *node, RelOptInfo *foreignrel, int *relno, int *colno)
 	{
 		return false;
 	}
+#else
+	/* For versions before PG 10, it doesn't push down Join */
+	return false;
+#endif
 
 	/*
 	 * If the Var doesn't belong to any lower subqueries, it isn't a subquery
