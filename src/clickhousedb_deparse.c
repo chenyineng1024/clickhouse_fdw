@@ -823,6 +823,8 @@ deparse_type_name(Oid type_oid, int32 typemod)
 
 	if (!chfdw_is_builtin(type_oid))
 		flags |= FORMAT_TYPE_FORCE_QUALIFY;
+#else
+	bits16		flags = 0;
 #endif
 
 	return ch_format_type_extended(type_oid, typemod, flags);
