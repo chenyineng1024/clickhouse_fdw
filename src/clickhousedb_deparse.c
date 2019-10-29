@@ -686,7 +686,11 @@ ch_format_type_extended(Oid type_oid, int32 typemod, bits16 flags)
 	else
 		is_array = false;
 
+#if PG_VERSION_NUM >= 110000
 	with_typemod = (flags & FORMAT_TYPE_TYPEMOD_GIVEN) != 0 && (typemod >= 0);
+#else
+	with_typemod = (typemod >= 0);
+#endif
 
 	/*
 	 * See if we want to special-case the output for certain built-in types.
@@ -710,6 +714,7 @@ ch_format_type_extended(Oid type_oid, int32 typemod, bits16 flags)
 		case BPCHAROID:
 			if (with_typemod)
 				buf = printTypmod("FixedString", typemod, typeform->typmodout);
+#if PG_VERSION_NUM >= 110000
 			else if ((flags & FORMAT_TYPE_TYPEMOD_GIVEN) != 0)
 			{
 				/*
@@ -718,6 +723,7 @@ ch_format_type_extended(Oid type_oid, int32 typemod, bits16 flags)
 				 * that parser will not assign a bogus typmod.
 				 */
 			}
+#endif
 			else
 				buf = pstrdup("String");
 			break;
@@ -812,10 +818,12 @@ ch_format_type_extended(Oid type_oid, int32 typemod, bits16 flags)
 static char *
 deparse_type_name(Oid type_oid, int32 typemod)
 {
+#if PG_VERSION_NUM >= 110000
 	bits16		flags = FORMAT_TYPE_TYPEMOD_GIVEN;
 
 	if (!chfdw_is_builtin(type_oid))
 		flags |= FORMAT_TYPE_FORCE_QUALIFY;
+#endif
 
 	return ch_format_type_extended(type_oid, typemod, flags);
 }
