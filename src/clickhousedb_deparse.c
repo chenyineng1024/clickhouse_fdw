@@ -3434,7 +3434,11 @@ appendFunctionName(Oid funcid, deparse_expr_cxt *context)
 	proname = NameStr(procform->proname);
 
 	/* we have some additional conditions on aggregation functions */
+#if PG_VERSION_NUM >= 110000
 	if (chfdw_is_builtin(funcid) && procform->prokind == PROKIND_AGGREGATE
+#else
+	if (chfdw_is_builtin(funcid) && procform->proisagg == true
+#endif
 			&& fpinfo->ch_table_engine == CH_COLLAPSING_MERGE_TREE)
 	{
 		cdef = palloc(sizeof(CustomObjectDef));
