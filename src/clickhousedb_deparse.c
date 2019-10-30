@@ -1621,7 +1621,17 @@ deparseColumnRef(StringInfo buf, CustomObjectDef *cdef,
 	 * FDW option, use attribute name.
 	 */
 	if (colname == NULL)
+#if PG_VERSION_NUM >= 110000
 		colname = get_attname(rte->relid, varattno, false);
+#else
+		colname = get_attname(rte->relid, varattno);
+
+	if (NULL == colname)
+	{
+		elog(ERROR, "cache lookup failed for attribute %d of relation %u",
+			 varattno, rte->relid);
+	}
+#endif
 
 	if (cinfo && cinfo->coltype == CF_ISTORE_ARR)
 	{
