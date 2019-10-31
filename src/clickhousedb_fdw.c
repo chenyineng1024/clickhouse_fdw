@@ -201,21 +201,27 @@ static TupleTableSlot *clickhouseExecForeignInsert(EState *estate,
         ResultRelInfo *resultRelInfo,
         TupleTableSlot *slot,
         TupleTableSlot *planSlot);
+#if PG_VERSION_NUM >= 110000
 static void clickhouseBeginForeignInsert(ModifyTableState *mtstate,
         ResultRelInfo *resultRelInfo);
+#endif
 static void clickhouseEndForeignInsert(EState *estate,
                                        ResultRelInfo *resultRelInfo);
 static void clickhouseExplainForeignScan(ForeignScanState *node,
         ExplainState *es);
+#if PG_VERSION_NUM >= 90600
 static void clickhouseGetForeignUpperPaths(PlannerInfo *root,
         UpperRelationKind stage,
         RelOptInfo *input_rel, RelOptInfo *output_rel,
         void *extra);
+#endif
 static bool clickhouseAnalyzeForeignTable(Relation relation,
         AcquireSampleRowsFunc *func,
         BlockNumber *totalpages);
+#if PG_VERSION_NUM >= 90500
 static bool clickhouseRecheckForeignScan(ForeignScanState *node,
         TupleTableSlot *slot);
+#endif
 
 /*
  * Helper functions
@@ -245,9 +251,11 @@ static int postgresAcquireSampleRowsFunc(Relation relation, int elevel,
         HeapTuple *rows, int targrows,
         double *totalrows,
         double *totaldeadrows);
+#if PG_VERSION_NUM >= 90500
 static bool foreign_join_ok(PlannerInfo *root, RelOptInfo *joinrel,
                             JoinType jointype, RelOptInfo *outerrel, RelOptInfo *innerrel,
                             JoinPathExtraData *extra);
+#endif
 static bool foreign_grouping_ok(PlannerInfo *root, RelOptInfo *grouped_rel,
                                 Node *havingQual);
 static List *get_useful_pathkeys_for_relation(PlannerInfo *root,
@@ -255,10 +263,12 @@ static List *get_useful_pathkeys_for_relation(PlannerInfo *root,
 static List *get_useful_ecs_for_relation(PlannerInfo *root, RelOptInfo *rel);
 static void add_paths_with_pathkeys_for_rel(PlannerInfo *root, RelOptInfo *rel,
         Path *epq_path);
+#if PG_VERSION_NUM >= 90600
 static void add_foreign_grouping_paths(PlannerInfo *root,
                                        RelOptInfo *input_rel,
                                        RelOptInfo *grouped_rel,
                                        GroupPathExtraData *extra);
+#endif
 static void apply_server_options(CHFdwRelationInfo *fpinfo);
 static void apply_table_options(CHFdwRelationInfo *fpinfo);
 static void merge_fdw_options(CHFdwRelationInfo *fpinfo,
@@ -360,8 +370,13 @@ clickhouseGetForeignRelSize(PlannerInfo *root,
 	 * columns used in them.  Doesn't seem worth detecting that case though.)
 	 */
 	fpinfo->attrs_used = NULL;
+#if PG_VERSION_NUM >= 90600
 	pull_varattnos((Node *) baserel->reltarget->exprs, baserel->relid,
 	               &fpinfo->attrs_used);
+#else
+	pull_varattnos((Node *) baserel->reltargetlist, baserel->relid,
+	               &fpinfo->attrs_used);
+#endif
 	foreach (lc, fpinfo->local_conds)
 	{
 		RestrictInfo *rinfo = lfirst_node(RestrictInfo, lc);
@@ -1281,6 +1296,7 @@ chfdw_get_foreign_server(Relation rel)
 	return server;
 }
 
+#if PG_VERSION_NUM >= 110000
 /*
  * clickhouseBeginForeignInsert
  *		Begin an insert operation on a foreign table
@@ -1342,6 +1358,7 @@ clickhouseBeginForeignInsert(ModifyTableState *mtstate,
 
 	resultRelInfo->ri_FdwState = fmstate;
 }
+#endif
 
 /*
  * clickhouseEndForeignInsert
@@ -1362,6 +1379,7 @@ clickhouseEndForeignInsert(EState *estate,
 	}
 }
 
+#if PG_VERSION_NUM >= 90500
 /*
  * clickhouseRecheckForeignScan
  *		Execute a local join execution plan for a foreign join
@@ -1390,6 +1408,7 @@ clickhouseRecheckForeignScan(ForeignScanState *node, TupleTableSlot *slot)
 
 	return true;
 }
+#endif
 
 /*
  * clickhouseExplainForeignScan
@@ -1784,6 +1803,7 @@ extract_join_equals(List *conds, List **to)
 	return res;
 }
 
+#if PG_VERSION_NUM >= 90500
 /*
  * Assess whether the join between inner and outer relations can be pushed down
  * to the foreign server. As a side effect, save information we obtain in this
@@ -2053,6 +2073,7 @@ foreign_join_ok(PlannerInfo *root, RelOptInfo *joinrel, JoinType jointype,
 
 	return true;
 }
+#endif
 
 static void
 add_paths_with_pathkeys_for_rel(PlannerInfo *root, RelOptInfo *rel,
@@ -2170,6 +2191,7 @@ merge_fdw_options(CHFdwRelationInfo *fpinfo,
 	}
 }
 
+#if PG_VERSION_NUM >= 90500
 /*
  * clickhouseGetForeignJoinPaths
  *		Add possible ForeignPath to joinrel, if join is safe to push down.
@@ -2281,6 +2303,7 @@ clickhouseGetForeignJoinPaths(PlannerInfo *root,
 	gettimeofday(&time2, NULL);
 	time_used += time_diff(&time1, &time2);
 }
+#endif
 
 /*
  * Assess whether the aggregation, grouping and having operations can be pushed
@@ -2495,6 +2518,7 @@ foreign_grouping_ok(PlannerInfo *root, RelOptInfo *grouped_rel,
 	return true;
 }
 
+#if PG_VERSION_NUM >= 90600
 /*
  * clickhouseGetForeignUpperPaths
  *		Add paths for post-join operations like aggregation, grouping etc. if
@@ -2534,7 +2558,9 @@ clickhouseGetForeignUpperPaths(PlannerInfo *root, UpperRelationKind stage,
 	gettimeofday(&time2, NULL);
 	time_used += time_diff(&time1, &time2);
 }
+#endif
 
+#if PG_VERSION_NUM >= 90600
 /*
  * add_foreign_grouping_paths
  *		Add foreign path for grouping and/or aggregation.
@@ -2621,6 +2647,7 @@ add_foreign_grouping_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	/* Add generated path into grouped_rel by add_path(). */
 	add_path(grouped_rel, (Path *) grouppath);
 }
+#endif
 
 /*
  * Find an equivalence class member expression, all of whose Vars, come from
@@ -2685,13 +2712,19 @@ clickhousedb_fdw_handler(PG_FUNCTION_ARGS)
 	routine->PlanForeignModify = clickhousePlanForeignModify;
 	routine->BeginForeignModify = clickhouseBeginForeignModify;
 	routine->ExecForeignInsert = clickhouseExecForeignInsert;
+#if PG_VERSION_NUM >= 110000
 	routine->BeginForeignInsert = clickhouseBeginForeignInsert;
+#endif
 
+#if PG_VERSION_NUM >= 110000
 	routine->EndForeignInsert = clickhouseEndForeignInsert;
+#endif
 	routine->EndForeignModify = clickhouseEndForeignInsert;
 
+#if PG_VERSION_NUM >= 90500
 	/* Function for EvalPlanQual rechecks */
 	routine->RecheckForeignScan = clickhouseRecheckForeignScan;
+#endif
 
 	/* Support functions for EXPLAIN */
 	routine->ExplainForeignScan = clickhouseExplainForeignScan;
@@ -2699,11 +2732,15 @@ clickhousedb_fdw_handler(PG_FUNCTION_ARGS)
 	/* Support functions for ANALYZE */
 	routine->AnalyzeForeignTable = clickhouseAnalyzeForeignTable;
 
+#if PG_VERSION_NUM >= 90500
 	/* Support functions for join push-down */
 	routine->GetForeignJoinPaths = clickhouseGetForeignJoinPaths;
+#endif
 
+#if PG_VERSION_NUM >= 90600
 	/* Support functions for upper relation push-down */
 	routine->GetForeignUpperPaths = clickhouseGetForeignUpperPaths;
+#endif
 
 #if PG_VERSION_NUM >= 90500
 	/* IMPORT FOREIGN SCHEMA */
